@@ -303,6 +303,7 @@ function App() {
         {activeView === "player" && (
           <PlayerView
             now={now}
+            taste={taste}
             messages={messages}
             input={input}
             pending={pending}
@@ -396,6 +397,7 @@ function StageShell({ activeView, onSelectView, children }) {
 
 function PlayerView({
   now,
+  taste,
   messages,
   input,
   pending,
@@ -422,6 +424,7 @@ function PlayerView({
   const [sourcePending, setSourcePending] = useState("");
   const [actionError, setActionError] = useState("");
   const [currentLiked, setCurrentLiked] = useState(false);
+  const [profileCard, setProfileCard] = useState("");
   const lyricListRef = useRef(null);
   const activeLyricRef = useRef(null);
   const lyricLines = current?.lyric?.length ? current.lyric : [];
@@ -437,6 +440,22 @@ function PlayerView({
     current?.source || "local",
     current?.album && current.album !== current.title ? current.album : ""
   ].filter(Boolean).join(" · ");
+  const assistantSpeaker = {
+    kind: "assistant",
+    name: "Claudio",
+    subtitle: now.decision?.play?.mood ? `${now.decision.play.mood}电台` : "AI 电台",
+    avatar: "",
+    detail: firstProfileLine(taste?.["taste.md"]) || "会根据你的对话、喜欢歌曲和播放历史持续更新口味画像。"
+  };
+  const userSpeaker = {
+    kind: "user",
+    name: hostName,
+    subtitle: hostProfile ? "网易云账号" : "本地画像",
+    avatar: hostAvatar,
+    detail: hostProfile
+      ? "已使用网易云头像和名称。喜欢歌曲摘要会进入 Claudio 的推荐上下文。"
+      : "登录网易云后会显示你的账号头像和名称，也能读取喜欢歌曲摘要。"
+  };
 
   useEffect(() => {
     const list = lyricListRef.current;
@@ -639,25 +658,26 @@ function PlayerView({
 
       <div className="chat-panel glass-card">
         <div className="message-list">
-          <div className="message assistant dj-thread">
-            <span className="message-label">
-              <Sparkles size={15} />
-              AI DJ
-            </span>
-            <p>{now.decision?.reply || now.decision?.say || "告诉 Claudio 你现在想进入什么状态。"}</p>
-            <div className="decision-row glass-row">
-              <span>{now.decision?.play?.mood || "未开始"}</span>
-              <span>{now.decision?.play?.query || "等待搜索词"}</span>
-            </div>
-          </div>
           {messages.slice(-7).map((message, index) => (
             <MessageBubble
               key={`${message.role}-${index}`}
               message={message}
+              speaker={message.role === "user" ? userSpeaker : assistantSpeaker}
+              onAvatar={() => setProfileCard(message.role === "user" ? "user" : "assistant")}
               onPlayRecommendation={playRecommendation}
             />
           ))}
         </div>
+        {profileCard && (
+          <ChatProfileCard
+            speaker={profileCard === "user" ? userSpeaker : assistantSpeaker}
+            onClose={() => setProfileCard("")}
+            onEdit={() => {
+              setProfileCard("");
+              onSelectView("profile");
+            }}
+          />
+        )}
         <form className="chat-form" onSubmit={sendMessage}>
           <Search size={18} />
           <input
@@ -687,41 +707,88 @@ function TrackRow({ track, onPlay }) {
   );
 }
 
-function MessageBubble({ message, onPlayRecommendation }) {
+function MessageBubble({ message, speaker, onAvatar, onPlayRecommendation }) {
   const recommendations = Array.isArray(message.recommendations) ? message.recommendations : [];
+  const isUser = message.role === "user";
   return (
-    <div className={`message ${message.role}`}>
-      <p>{message.content}</p>
-      {recommendations.length > 0 && (
-        <details className="recommendation-panel" open>
-          <summary>
-            <ListMusic size={14} />
-            <span>推荐歌曲</span>
-            <small>{recommendations.length}</small>
-          </summary>
-          <div className="recommendation-list">
-            {recommendations.map((track) => (
-              <button
-                className="recommendation-row"
-                key={`${track.id}-${track.recommendationQuery || ""}`}
-                type="button"
-                onClick={() => onPlayRecommendation(track)}
-                title={`播放 ${track.title}`}
-              >
-                <img src={coverUrl(track.cover)} alt="" />
-                <div>
-                  <strong>{track.title}</strong>
-                  <span>{track.artist || track.recommendationQuery || "Netease"}</span>
-                  {track.recommendationReason && <small>{track.recommendationReason}</small>}
-                </div>
-                <Play size={15} />
-              </button>
-            ))}
-          </div>
-        </details>
-      )}
+    <div className={`chat-message ${isUser ? "user" : "assistant"}`}>
+      {!isUser && <ChatAvatar speaker={speaker} onClick={onAvatar} />}
+      <div className="chat-bubble">
+        <p>{message.content}</p>
+        {recommendations.length > 0 && (
+          <details className="recommendation-panel" open>
+            <summary>
+              <ListMusic size={14} />
+              <span>推荐歌曲</span>
+              <small>{recommendations.length}</small>
+            </summary>
+            <div className="recommendation-list">
+              {recommendations.map((track) => (
+                <button
+                  className="recommendation-row"
+                  key={`${track.id}-${track.recommendationQuery || ""}`}
+                  type="button"
+                  onClick={() => onPlayRecommendation(track)}
+                  title={`播放 ${track.title}`}
+                >
+                  <img src={coverUrl(track.cover)} alt="" />
+                  <div>
+                    <strong>{track.title}</strong>
+                    <span>{track.artist || track.recommendationQuery || "Netease"}</span>
+                    {track.recommendationReason && <small>{track.recommendationReason}</small>}
+                  </div>
+                  <Play size={15} />
+                </button>
+              ))}
+            </div>
+          </details>
+        )}
+      </div>
+      {isUser && <ChatAvatar speaker={speaker} onClick={onAvatar} />}
     </div>
   );
+}
+
+function ChatAvatar({ speaker, onClick }) {
+  return (
+    <button className={`chat-avatar ${speaker.kind}`} type="button" onClick={onClick} title={`${speaker.name} 资料`}>
+      {speaker.avatar ? (
+        <img src={speaker.avatar} alt="" />
+      ) : speaker.kind === "assistant" ? (
+        <Waves size={18} />
+      ) : (
+        <CircleUserRound size={18} />
+      )}
+    </button>
+  );
+}
+
+function ChatProfileCard({ speaker, onClose, onEdit }) {
+  return (
+    <div className={`chat-profile-card ${speaker.kind}`}>
+      <button className="profile-card-close" type="button" onClick={onClose} title="关闭">
+        <X size={15} />
+      </button>
+      <ChatAvatar speaker={speaker} onClick={onClose} />
+      <div className="profile-card-copy">
+        <strong>{speaker.name}</strong>
+        <span>{speaker.subtitle}</span>
+        <p>{speaker.detail}</p>
+      </div>
+      <button className="profile-card-edit" type="button" onClick={onEdit}>
+        编辑画像
+      </button>
+    </div>
+  );
+}
+
+function firstProfileLine(content) {
+  if (!content) return "";
+  const genericHeadings = new Set(["taste", "profile", "user taste", "用户语料", "画像", "个人画像"]);
+  return String(content)
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^[-#*\s]+/, "").trim())
+    .find((line) => line && !genericHeadings.has(line.toLowerCase())) || "";
 }
 
 function buildFallbackLyric(now, messages) {
