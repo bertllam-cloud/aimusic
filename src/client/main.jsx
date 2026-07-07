@@ -259,6 +259,15 @@ function App() {
     return postJson("/api/ncm/like", { id, like: liked });
   }
 
+  function seekToRatio(ratio) {
+    const audio = audioRef.current;
+    const targetDuration = duration || now.current?.duration || audio?.duration || 0;
+    if (!audio || !Number.isFinite(targetDuration) || targetDuration <= 0) return;
+    const nextTime = Math.min(targetDuration, Math.max(0, ratio * targetDuration));
+    audio.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  }
+
   async function refreshTaste() {
     const tasteRes = await getJson("/api/taste");
     setTaste(tasteRes.files);
@@ -311,6 +320,7 @@ function App() {
             nextTrack={nextTrack}
             selectTrack={selectTrack}
             playRecommendation={playRecommendation}
+            seekToRatio={seekToRatio}
             loadNcmSource={loadNcmSource}
             toggleNcmLike={toggleNcmLike}
           />
@@ -403,6 +413,7 @@ function PlayerView({
   nextTrack,
   selectTrack,
   playRecommendation,
+  seekToRatio,
   loadNcmSource,
   toggleNcmLike
 }) {
@@ -413,9 +424,11 @@ function PlayerView({
   const [currentLiked, setCurrentLiked] = useState(false);
   const lyricListRef = useRef(null);
   const activeLyricRef = useRef(null);
-  const lyricLines = current?.lyric?.length ? current.lyric : buildFallbackLyric(now, messages);
+  const lyricLines = current?.lyric?.length ? current.lyric : [];
   const activeLyricIndex = getActiveLyricIndex(lyricLines, currentTime);
-  const progress = Math.min(100, ((currentTime || 0) / (duration || current?.duration || 1)) * 100);
+  const effectiveDuration = duration || current?.duration || 0;
+  const canSeek = Boolean(current?.id && effectiveDuration > 0);
+  const progress = canSeek ? Math.min(100, ((currentTime || 0) / effectiveDuration) * 100) : 0;
   const cover = coverUrl(current?.cover);
   const hostProfile = ncmAccount?.loggedIn ? ncmAccount.profile : null;
   const hostName = hostProfile?.nickname || "Claudio";
@@ -474,6 +487,13 @@ function PlayerView({
       setCurrentLiked(!nextLiked);
       setActionError(error.message || "喜欢状态更新失败");
     }
+  }
+
+  function seekFromPointer(event) {
+    if (!canSeek) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0;
+    seekToRatio(ratio);
   }
 
   return (
@@ -545,16 +565,22 @@ function PlayerView({
             </div>
           </div>
 
-          <div className="progress-row">
-            <div className="progress-track" aria-label="播放进度">
+          <div className={canSeek ? "progress-row can-seek" : "progress-row"}>
+            <button
+              className="progress-track"
+              aria-label="播放进度"
+              type="button"
+              disabled={!canSeek}
+              onClick={seekFromPointer}
+            >
               <span style={{ width: `${progress}%` }} />
-            </div>
-            <span>{formatDuration(currentTime)} / {formatDuration(duration || current?.duration || 0)}</span>
+            </button>
+            <span>{formatDuration(currentTime)} / {formatDuration(effectiveDuration)}</span>
           </div>
           {playbackError && <div className="playback-alert">{playbackError}</div>}
           {actionError && <div className="playback-alert">{actionError}</div>}
 
-          <div className="lyric-glass">
+          <div className={lyricLines.length ? "lyric-glass" : "lyric-glass empty"}>
             <div className="lyric-list" ref={lyricListRef}>
               {lyricLines.map((line, index) => (
                 <p
