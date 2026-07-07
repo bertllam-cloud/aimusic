@@ -1,0 +1,57 @@
+{
+  "name": "claudio-ai-radio",
+  "version": "0.1.0",
+  "description": "A local-first AI radio player inspired by Apple Music style patterns.",
+  "private": true,
+  "type": "module",
+  "main": "src/electron/main.cjs",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:ncm": "node scripts/ncm.mjs",
+    "dev:api": "node src/server/index.js",
+    "dev:web": "vite --host 127.0.0.1 --port 5173",
+    "dev:desktop": "node scripts/dev-desktop.mjs",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "start": "node src/server/index.js",
+    "check": "node scripts/check.mjs",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.17.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^37.2.0",
+    "electron-builder": "^24.13.3",
+    "vite": "^5.4.0"
+  },
+  "build": {
+    "appId": "local.claudio.radio",
+    "productName": "Claudio",
+    "files": [
+      "dist/**/*",
+      "src/server/**/*",
+      "src/electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "public"
+    },
+    "mac": {
+      "category": "public.app-category.music"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

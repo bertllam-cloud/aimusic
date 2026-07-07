@@ -1,0 +1,11 @@
+node_modules/
+dist/
+release/
+outputs/
+work/
+.claudio-data/
+.env
+*.sqlite
+*.db
+*.log
+.DS_Store
