@@ -16,6 +16,16 @@ import { createTtsAdapter } from "./adapters/tts.js";
 
 loadDotEnv();
 
+const NETEASE_COVER_HOST = /(^|\.)music\.126\.net$/i;
+
+function parseNeteaseCoverUrl(value) {
+  const target = new URL(String(value || ""));
+  if (target.protocol !== "https:" || !NETEASE_COVER_HOST.test(target.hostname)) {
+    throw new Error("unsupported cover source");
+  }
+  return target;
+}
+
 export async function startServer(options = {}) {
   const app = express();
   const server = http.createServer(app);
@@ -368,6 +378,35 @@ export async function startServer(options = {}) {
       Readable.fromWeb(audioResponse.body).pipe(response);
     } catch (error) {
       response.status(502).json({ error: error.message || "audio proxy failed" });
+    }
+  });
+
+  app.get("/api/cover", async (request, response) => {
+    try {
+      const target = parseNeteaseCoverUrl(request.query.url);
+      const coverResponse = await fetch(target, {
+        headers: { accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8" },
+        redirect: "follow"
+      });
+      const finalUrl = parseNeteaseCoverUrl(coverResponse.url);
+      const contentType = coverResponse.headers.get("content-type") || "";
+      const contentLength = Number(coverResponse.headers.get("content-length") || 0);
+
+      if (!coverResponse.ok || !coverResponse.body) {
+        response.status(coverResponse.status || 502).json({ error: "cover fetch failed" });
+        return;
+      }
+      if (!contentType.startsWith("image/") || contentLength > 5 * 1024 * 1024) {
+        response.status(415).json({ error: "unsupported cover response" });
+        return;
+      }
+
+      response.setHeader("content-type", contentType);
+      response.setHeader("cache-control", "public, max-age=86400");
+      response.setHeader("x-claudio-cover-host", finalUrl.hostname);
+      Readable.fromWeb(coverResponse.body).pipe(response);
+    } catch {
+      response.status(400).json({ error: "invalid Netease cover URL" });
     }
   });
 

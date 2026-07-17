@@ -1,11 +1,11 @@
 {
-  "name": "Claudio AI Radio",
+  "name": "Claudio AI 电台",
   "short_name": "Claudio",
-  "description": "Local-first personal AI radio player.",
+  "description": "随专辑氛围变化的沉浸式 AI 电台助手。",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#050506",
-  "theme_color": "#0b0b0f",
+  "background_color": "#171318",
+  "theme_color": "#171318",
   "icons": [
     {
       "src": "/icon.svg",
