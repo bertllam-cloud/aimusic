@@ -42,21 +42,15 @@ Supported keys:
 - `OPENWEATHER_API_KEY`
 - `NCM_COOKIE`
 - `NCM_API_BASE`
+- `NCM_AUTO_START`
+- `NCM_APP_PATH`
 - `UPNP_TARGET_URL`
 
-For NeteaseCloudMusicApi, run an NCM API server separately and set `NCM_API_BASE`. Claudio has been tested with `xiaoyangxiaozhang/ncm-api-enhanced` on `http://127.0.0.1:3300`:
+Claudio includes the NeteaseCloudMusicApi source and its runtime dependencies under `src/server/ncm-api`. The normal `npm run dev` and `npm start` commands start both services inside the same Node process; no second terminal, clone, or separate NCM install is required. The bundled API listens on `http://127.0.0.1:3300` by default.
 
-```bash
-mkdir -p work
-cd work
-git clone https://github.com/xiaoyangxiaozhang/ncm-api-enhanced.git
-cd ncm-api-enhanced
-pnpm install
-cd ../../
-npm run dev:ncm
-```
+The bundled API is based on `xiaoyangxiaozhang/ncm-api-enhanced`; its upstream license is included at `src/server/ncm-api/LICENSE`.
 
-Then set `NCM_API_BASE=http://127.0.0.1:3300` in the Claudio Settings screen. If NCM is not configured or unavailable, Claudio falls back to playable demo tracks.
+`NCM_AUTO_START=false` disables the embedded API. `NCM_APP_PATH` can be used to point to a compatible replacement server module for advanced setups. If the embedded API is unavailable, Claudio falls back to playable demo tracks.
 
 ## Data
 

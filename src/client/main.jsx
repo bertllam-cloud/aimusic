@@ -114,6 +114,8 @@ function App() {
   const [volume, setVolume] = useState(0.72);
   const [activeTab, setActiveTab] = useState("radio");
   const [theme, setTheme] = useState(getInitialTheme);
+  const [cardOpacity, setCardOpacity] = useState(getInitialCardOpacity);
+  const [cardBlur, setCardBlur] = useState(getInitialCardBlur);
   const [voiceActive, setVoiceActive] = useState(false);
   const [airplayActive, setAirplayActive] = useState(false);
   const [taste, setTaste] = useState({});
@@ -134,15 +136,22 @@ function App() {
       "--c2": (colors[1] || colors[0]).join(" "),
       "--c3": (colors[2] || colors[0]).join(" "),
       "--c4": (colors[3] || colors[0]).join(" "),
-      "--c5": (colors[4] || colors[1] || colors[0]).join(" ")
+      "--c5": (colors[4] || colors[1] || colors[0]).join(" "),
+      "--card-opacity": `${cardOpacity / 100}`,
+      "--card-blur": `${cardBlur}px`
     };
-  }, [paletteState.current]);
+  }, [paletteState.current, cardBlur, cardOpacity]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
     window.localStorage.setItem("claudio_theme_choice", theme);
   }, [theme]);
+
+  useEffect(() => {
+    window.localStorage.setItem("claudio_card_opacity", String(cardOpacity));
+    window.localStorage.setItem("claudio_card_blur", String(cardBlur));
+  }, [cardBlur, cardOpacity]);
 
   useEffect(() => {
     let active = true;
@@ -334,8 +343,6 @@ function App() {
       />
 
       <main className={activeTab === "radio" ? "radio-page" : "radio-page utility-page"}>
-        <StatusBar />
-
         {activeTab === "radio" && <>
         <section className="liquid-card player-card" aria-label="正在播放">
           <header className="card-brand-row">
@@ -420,7 +427,6 @@ function App() {
               <h2 id="assistant-title">AI 电台助手</h2>
               <p>由 Apple 智能驱动</p>
             </div>
-            <span className="live-pill">直播</span>
           </header>
 
           <div className="conversation" aria-live="polite">
@@ -483,6 +489,10 @@ function App() {
             account={ncmAccount}
             theme={theme}
             onThemeChange={setTheme}
+            cardOpacity={cardOpacity}
+            onCardOpacityChange={setCardOpacity}
+            cardBlur={cardBlur}
+            onCardBlurChange={setCardBlur}
             onSaved={setSettings}
             onAccount={setNcmAccount}
           />
@@ -499,19 +509,6 @@ function App() {
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration || current.duration || 0)}
         onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime || 0)}
       />
-    </div>
-  );
-}
-
-function StatusBar() {
-  return (
-    <div className="status-bar" aria-hidden="true">
-      <strong>9:41</strong>
-      <div className="status-icons">
-        <span className="signal-bars"><i /><i /><i /><i /></span>
-        <span className="wifi-mark">⌁</span>
-        <span className="battery-mark"><i /></span>
-      </div>
     </div>
   );
 }
@@ -664,7 +661,18 @@ function LibraryView({ taste, plan, onSaved }) {
   );
 }
 
-function SettingsView({ settings, account, theme, onThemeChange, onSaved, onAccount }) {
+function SettingsView({
+  settings,
+  account,
+  theme,
+  onThemeChange,
+  cardOpacity,
+  onCardOpacityChange,
+  cardBlur,
+  onCardBlurChange,
+  onSaved,
+  onAccount
+}) {
   const [form, setForm] = useState({});
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState("");
@@ -674,7 +682,7 @@ function SettingsView({ settings, account, theme, onThemeChange, onSaved, onAcco
     ["AI_TIMEOUT_MS", "AI 超时", "60000"],
     ["ANTHROPIC_BASE_URL", "Anthropic 地址", "https://api.anthropic.com"],
     ["OPENAI_BASE_URL", "OpenAI 地址", "兼容 API 地址"],
-    ["NCM_API_BASE", "网易云 API 地址", "http://127.0.0.1:3300"],
+    ["NCM_API_BASE", "网易云 API 地址", "本地 API 会随 Claudio 自动启动（默认 3300）"],
     ["NCM_COOKIE", "网易云 Cookie", "留空即可保留已保存的值"],
     ["OPENAI_API_KEY", "OpenAI 密钥", "留空即可保留已保存的值"],
     ["ANTHROPIC_API_KEY", "Anthropic 密钥", "留空即可保留已保存的值"],
@@ -740,10 +748,38 @@ function SettingsView({ settings, account, theme, onThemeChange, onSaved, onAcco
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索设置" />
       </label>
       <section className="liquid-card utility-card appearance-card">
-        <div className="utility-card-heading"><h2>外观</h2><span>本设备</span></div>
-        <div className="appearance-switch" role="group" aria-label="外观">
-          <button className={theme === "light" ? "active" : ""} type="button" onClick={() => onThemeChange("light")}><Sun size={17} /> 浅色</button>
-          <button className={theme === "dark" ? "active" : ""} type="button" onClick={() => onThemeChange("dark")}><Moon size={17} /> 深色</button>
+        <div>
+          <div className="utility-card-heading"><h2>外观</h2><span>本设备</span></div>
+          <div className="appearance-switch" role="group" aria-label="外观">
+            <button className={theme === "light" ? "active" : ""} type="button" onClick={() => onThemeChange("light")}><Sun size={17} /> 浅色</button>
+            <button className={theme === "dark" ? "active" : ""} type="button" onClick={() => onThemeChange("dark")}><Moon size={17} /> 深色</button>
+          </div>
+        </div>
+        <div className="appearance-tuning" aria-label="卡片材质调节">
+          <label className="tuning-control">
+            <span><b>卡片透明度</b><output>{Math.round(cardOpacity)}%</output></span>
+            <input
+              type="range"
+              min="4"
+              max="64"
+              value={cardOpacity}
+              aria-label="卡片透明度"
+              style={{ "--range-progress": `${((cardOpacity - 4) / 60) * 100}%` }}
+              onChange={(event) => onCardOpacityChange(Number(event.target.value))}
+            />
+          </label>
+          <label className="tuning-control">
+            <span><b>卡片 Blur</b><output>{cardBlur}px</output></span>
+            <input
+              type="range"
+              min="0"
+              max="80"
+              value={cardBlur}
+              aria-label="卡片 Blur"
+              style={{ "--range-progress": `${(cardBlur / 80) * 100}%` }}
+              onChange={(event) => onCardBlurChange(Number(event.target.value))}
+            />
+          </label>
         </div>
       </section>
       <section className="liquid-card utility-card account-card">
@@ -1012,6 +1048,18 @@ function getInitialTheme() {
   const stored = window.localStorage.getItem("claudio_theme_choice");
   if (stored === "light" || stored === "dark") return stored;
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function getInitialCardOpacity() {
+  const stored = Number(window.localStorage.getItem("claudio_card_opacity"));
+  if (Number.isFinite(stored) && stored >= 4 && stored <= 64) return stored;
+  return getInitialTheme() === "dark" ? 28 : 8;
+}
+
+function getInitialCardBlur() {
+  const raw = window.localStorage.getItem("claudio_card_blur");
+  const stored = Number(raw);
+  return raw !== null && Number.isFinite(stored) && stored >= 0 && stored <= 80 ? stored : 40;
 }
 
 function audioSource(track) {

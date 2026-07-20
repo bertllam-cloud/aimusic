@@ -7,6 +7,7 @@ const files = [
   "src/server/context.js",
   "src/server/router.js",
   "src/server/queue.js",
+  "src/server/ncm-runtime.js",
   "src/server/adapters/ai.js",
   "src/server/adapters/music.js",
   "src/server/adapters/tts.js"

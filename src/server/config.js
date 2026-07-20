@@ -19,6 +19,8 @@ const DEFAULTS = {
   ANTHROPIC_MODEL: "claude-3-5-sonnet-latest",
   CLAUDE_CLI_BIN: "claude",
   NCM_API_BASE: "http://127.0.0.1:3300",
+  NCM_AUTO_START: "true",
+  NCM_APP_PATH: "",
   CLAUDIO_API_PORT: "4217"
 };
 

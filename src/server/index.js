@@ -13,6 +13,7 @@ import { createPlaybackQueue } from "./queue.js";
 import { createAiAdapter } from "./adapters/ai.js";
 import { createMusicAdapter } from "./adapters/music.js";
 import { createTtsAdapter } from "./adapters/tts.js";
+import { startNcmRuntime } from "./ncm-runtime.js";
 
 loadDotEnv();
 
@@ -33,6 +34,11 @@ export async function startServer(options = {}) {
   const port = Number(options.port || process.env.CLAUDIO_API_PORT || 4217);
   const store = await createStateStore(dataDir);
   const runtime = createRuntimeConfig(store);
+  const ncm = await startNcmRuntime({
+    baseUrl: runtime.get("NCM_API_BASE"),
+    autoStart: runtime.get("NCM_AUTO_START") !== "false",
+    appPath: runtime.get("NCM_APP_PATH")
+  });
   const queue = createPlaybackQueue(store);
   const ai = createAiAdapter(runtime);
   const music = createMusicAdapter(runtime);
@@ -55,7 +61,7 @@ export async function startServer(options = {}) {
   async function requestNcm(pathname, options = {}) {
     const baseValue = runtime.get("NCM_API_BASE");
     if (!baseValue) {
-      const error = new Error("NCM_API_BASE is empty. Start ncm-api-enhanced and set its local URL first.");
+      const error = new Error("NCM_API_BASE is empty. Configure a local Netease API URL first.");
       error.status = 400;
       throw error;
     }
@@ -332,7 +338,19 @@ export async function startServer(options = {}) {
   });
 
   app.get("/api/health", (_request, response) => {
-    response.json({ ok: true, dataDir, port });
+    response.json({
+      ok: true,
+      dataDir,
+      port,
+      ncm: {
+        enabled: ncm.enabled,
+        running: ncm.running,
+        started: ncm.started,
+        starting: ncm.starting,
+        ready: ncm.ready,
+        reason: ncm.reason || "ready"
+      }
+    });
   });
 
   app.get("/api/now", (_request, response) => {
@@ -730,14 +748,21 @@ export async function startServer(options = {}) {
     response.json(payload);
   });
 
-  await new Promise((resolve, reject) => {
-    const onError = (error) => reject(error);
-    server.once("error", onError);
-    server.listen(port, "127.0.0.1", () => {
-      server.off("error", onError);
-      resolve();
+  try {
+    await new Promise((resolve, reject) => {
+      const onError = (error) => reject(error);
+      server.once("error", onError);
+      server.listen(port, "127.0.0.1", () => {
+        server.off("error", onError);
+        resolve();
+      });
     });
-  });
+  } catch (error) {
+    ncm.close();
+    wss.close();
+    store.close();
+    throw error;
+  }
 
   return {
     app,
@@ -745,6 +770,7 @@ export async function startServer(options = {}) {
     port,
     dataDir,
     close() {
+      ncm.close();
       wss.close();
       store.close();
       server.close();
@@ -865,8 +891,17 @@ function ncmLoginMessage(code, fallback = "") {
 
 const entryPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
 if (import.meta.url === entryPath) {
+  let serverHandle;
+  const shutdown = () => {
+    serverHandle?.close();
+    process.exit(0);
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
   startServer()
-    .then(({ port, dataDir }) => {
+    .then((handle) => {
+      serverHandle = handle;
+      const { port, dataDir } = handle;
       console.log(`Claudio API listening on http://127.0.0.1:${port}`);
       console.log(`Data directory: ${dataDir}`);
     })

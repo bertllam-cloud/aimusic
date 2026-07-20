@@ -7,7 +7,6 @@
   "main": "src/electron/main.cjs",
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "dev:ncm": "node scripts/ncm.mjs",
     "dev:api": "node src/server/index.js",
     "dev:web": "vite --host 127.0.0.1 --port 5173",
     "dev:desktop": "node scripts/dev-desktop.mjs",
@@ -19,12 +18,26 @@
     "dist:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
+    "@neteasecloudmusicapienhanced/unblockmusic-utils": "^0.2.4",
+    "axios": "^1.15.0",
     "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^17.4.2",
     "express": "^4.19.2",
+    "express-fileupload": "^1.5.2",
+    "gzip": "^0.1.0",
     "lucide-react": "^0.468.0",
+    "music-metadata": "^11.12.3",
+    "node-forge": "^1.4.0",
+    "pac-proxy-agent": "^7.2.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "ws": "^8.17.1"
+    "safe-decode-uri-component": "^1.2.1",
+    "tunnel": "^0.0.6",
+    "ws": "^8.17.1",
+    "xml2js": "^0.6.2",
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
